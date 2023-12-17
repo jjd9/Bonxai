@@ -189,6 +189,10 @@ void BonxaiServer::insertCloudCallback(const PointCloud2::ConstSharedPtr cloud)
           .matrix()
           .cast<float>();
 
+  // remove nan values (e.g. from an organized pointcloud)
+  std::vector<int> indices;
+  pcl::removeNaNFromPointCloud(pc, pc, indices);
+  
   // Transforming Points to Global Reference Frame
   pcl::transformPointCloud(pc, pc, sensor_to_world);
 
