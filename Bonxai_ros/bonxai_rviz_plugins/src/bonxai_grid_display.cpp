@@ -105,57 +105,10 @@ void BonxaiGridDisplay::unsubscribe()
 }
 
 // method taken from octomap_server package
-void BonxaiGridDisplay::setColorFromZAxis(double z_pos,
-                                          double color_factor,
-                                          rviz_rendering::PointCloud::Point& point)
+void BonxaiGridDisplay::setColorFromZAxis(rviz_rendering::PointCloud::Point& point)
 {
-  int i{};
-  double m{};
-  double n{};
-  double f{};
-
-  double s = 1.0;
-  double v = 1.0;
-  double h =
-      (1.0 - std::min(std::max((z_pos - min_z_) / (max_z_ - min_z_), 0.0), 1.0)) *
-      color_factor;
-
-  h -= floor(h);
-  h *= 6;
-  i = floor(h);
-  f = h - i;
-  if (!(i & 1))
-  {
-    f = 1 - f;  // if i is even
-  }
-  m = v * (1 - s);
-  n = v * (1 - s * f);
-
-  switch (i)
-  {
-    case 6:
-    case 0:
-      point.setColor(v, n, m);
-      break;
-    case 1:
-      point.setColor(n, v, m);
-      break;
-    case 2:
-      point.setColor(m, v, n);
-      break;
-    case 3:
-      point.setColor(m, n, v);
-      break;
-    case 4:
-      point.setColor(n, m, v);
-      break;
-    case 5:
-      point.setColor(v, m, n);
-      break;
-    default:
-      point.setColor(1, 0.5, 0.5);
-      break;
-  }
+  const float z_scaled = (max_z_ - point.z) / (max_z_ - min_z_);
+  point.setColor((1.0f - z_scaled), z_scaled, 0.0);
 }
 
 void BonxaiGridDisplay::updateBonxaiColorMode()
@@ -298,7 +251,7 @@ void ScalarBonxaiGridDisplay<float>::setVoxelColor(
                    "Cannot extract color from Scalar grid");
       break;
     case BONXAI_Z_AXIS_COLOR:
-      setColorFromZAxis(new_point.position.z, color_factor_, new_point);
+      setColorFromZAxis(new_point);
       break;
     case BONXAI_PROBABILITY_COLOR:
       // TODO (jjd9): Add min/max parameter for scaling between 0 and 1.
@@ -326,7 +279,7 @@ void ProbabilisticBonxaiGridDisplay::setVoxelColor(
                    "Cannot extract color from Scalar grid");
       break;
     case BONXAI_Z_AXIS_COLOR:
-      setColorFromZAxis(new_point.position.z, color_factor_, new_point);
+      setColorFromZAxis(new_point);
       break;
     case BONXAI_PROBABILITY_COLOR:
       cell_probability = Bonxai::ProbabilisticMap::prob(cell.probability_log);
@@ -351,7 +304,7 @@ void ColorBonxaiGridDisplay::setVoxelColor(
       new_point.setColor(cell.r, cell.g, cell.b);
       break;
     case BONXAI_Z_AXIS_COLOR:
-      setColorFromZAxis(new_point.position.z, color_factor_, new_point);
+      setColorFromZAxis(new_point);
       break;
     case BONXAI_PROBABILITY_COLOR:
       setStatusStd(StatusProperty::Error,

@@ -69,9 +69,7 @@ private Q_SLOTS:
 protected:
   void unsubscribe() override;
 
-  void setColorFromZAxis(double z_pos,
-                         double color_factor,
-                         rviz_rendering::PointCloud::Point& point);
+  void setColorFromZAxis(rviz_rendering::PointCloud::Point& point);
 
   void clear();
 
@@ -95,7 +93,6 @@ protected:
       *scalar_threshold_property_;
 
   // parameters to control the z-axis scaling
-  double color_factor_{ 0.8 };
   double max_z_{ 1.0 };
   double min_z_{ -1.0 };
 
