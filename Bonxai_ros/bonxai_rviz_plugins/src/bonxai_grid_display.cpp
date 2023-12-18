@@ -276,7 +276,8 @@ void ScalarBonxaiGridDisplay<float>::setVoxelColor(
       setColorFromZAxis(new_point);
       break;
     case BONXAI_PROBABILITY_COLOR:
-      // TODO (jjd9): Add min/max parameter for scaling between 0 and 1.
+      // Should we support values outside the 0 to 1 range for the scalar bonxai grid
+      // display?
       cell_probability = std::max(std::min(1.0f, cell), 0.0f);
       // high probability -> green, low probability -> red
       new_point.setColor((1.0f - cell_probability), cell_probability, 0.0);
@@ -458,9 +459,6 @@ using FloatBonxaiGridDisplay = ScalarBonxaiGridDisplay<float>;
 
 #include "pluginlib/class_list_macros.hpp"
 
-// TODO (jjd9): These plugins are SUPER specific (e.g. float and
-// std_msgs::msg::ColorRGBA, whereas bonxai supports all scalar values and all
-// rgb-like structs). It would be nice to make this more flexible somehow.
 PLUGINLIB_EXPORT_CLASS(bonxai_rviz_plugins::FloatBonxaiGridDisplay,
                        rviz_common::Display)
 PLUGINLIB_EXPORT_CLASS(bonxai_rviz_plugins::ColorBonxaiGridDisplay,
