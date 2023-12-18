@@ -5,7 +5,7 @@
     <description>
       Displays 3D Bonxai grids containing scalar values.
     </description>
-    <message_type>bonxai_msgs/msg/bonxai</message_type>
+    <message_type>bonxai_msgs/msg/Bonxai</message_type>
   </class>
 
   <class name="bonxai_rviz_plugins/ProbabilisticBonxaiGrid"
@@ -14,7 +14,7 @@
     <description>
       Displays 3D Bonxai grids containing ProbabilisticMap CellT values.
     </description>
-    <message_type>bonxai_msgs/msg/bonxai</message_type>
+    <message_type>bonxai_msgs/msg/Bonxai</message_type>
   </class>
 
   <class name="bonxai_rviz_plugins/ColorBonxaiGrid"
@@ -23,6 +23,6 @@
     <description>
       Displays 3D Bonxai grids containing RGB values.
     </description>
-    <message_type>bonxai_msgs/msg/bonxai</message_type>
+    <message_type>bonxai_msgs/msg/Bonxai</message_type>
   </class>
 </library>

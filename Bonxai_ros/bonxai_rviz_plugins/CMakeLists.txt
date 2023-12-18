@@ -27,9 +27,6 @@ endforeach()
 ament_auto_add_library(${PROJECT_NAME} SHARED
   ${bonxai_rviz_plugins_moc_files}
   src/bonxai_grid_display.cpp
-  src/color_grid_display.cpp
-  src/probabilistic_grid_display.cpp
-  src/scalar_grid_display.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}

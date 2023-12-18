@@ -8,8 +8,8 @@
  * Author: John D'Angelo
  */
 
-#ifndef BONXAI_RVIZ_PLUGINS__BONXAI_GRID_DISPLAY_HPP_
-#define BONXAI_RVIZ_PLUGINS__BONXAI_GRID_DISPLAY_HPP_
+#ifndef BONXAI_RVIZ_PLUGINS__OCCUPANCY_GRID_DISPLAY_HPP_
+#define BONXAI_RVIZ_PLUGINS__OCCUPANCY_GRID_DISPLAY_HPP_
 
 #ifndef Q_MOC_RUN
 
@@ -17,17 +17,13 @@
 #include <string>
 #include <vector>
 
-#include <QObject>  // NOLINT
-
-#include "rviz_common/visualization_manager.hpp"
-#include "rviz_common/properties/int_property.hpp"
-#include "rviz_common/properties/enum_property.hpp"
-#include "rviz_common/properties/float_property.hpp"
-#include "rviz_common/properties/status_property.hpp"
-#include "rviz_common/message_filter_display.hpp"
-#include "rviz_rendering/objects/point_cloud.hpp"
-
 #include "bonxai_msgs/msg/bonxai.hpp"
+#include "bonxai_map/probabilistic_map.hpp"
+
+#include <std_msgs/msg/color_rgba.hpp>
+
+#include "rviz_rendering/objects/point_cloud.hpp"
+#include "rviz_common/message_filter_display.hpp"
 
 #endif
 
@@ -43,19 +39,13 @@ class FloatProperty;
 
 namespace bonxai_rviz_plugins
 {
-using rviz_common::properties::StatusProperty;
-
-enum BonxaiVoxelColorMode
-{
-  BONXAI_CELL_COLOR,
-  BONXAI_Z_AXIS_COLOR,
-  BONXAI_PROBABILITY_COLOR,
-};
 
 // this is to make iterating over the faces of a cube more convenient
 const std::vector<std::vector<int32_t>> CUBE_FACES{
   { 1, 0, 0 }, { -1, 0, 0 }, { 0, 1, 0 }, { 0, -1, 0 }, { 0, 0, 1 }, { 0, 0, -1 },
 };
+
+using ProbabilisticCell = Bonxai::ProbabilisticMap::CellT;
 
 class BonxaiGridDisplay
   : public rviz_common::MessageFilterDisplay<bonxai_msgs::msg::Bonxai>
@@ -73,10 +63,15 @@ public:
 private Q_SLOTS:
   void updateBonxaiColorMode();
   void updateAlpha();
+  void updateScalarThreshold();
   void updateStyle();
 
 protected:
   void unsubscribe() override;
+
+  void setColorFromZAxis(double z_pos,
+                         double color_factor,
+                         rviz_rendering::PointCloud::Point& point);
 
   void clear();
 
@@ -89,18 +84,23 @@ protected:
   std::vector<rviz_rendering::PointCloud::Point> point_buf_;
   bool new_points_received_{ false };
 
-  // Ogre-rviz pointcloud
+  // Ogre-rviz point clouds
   std::shared_ptr<rviz_rendering::PointCloud> cloud_;
-  double voxel_size_;
+  double box_size_;
   std_msgs::msg::Header header_;
 
   // Plugin properties
   rviz_common::properties::EnumProperty *bonxai_coloring_property_, *style_property_;
-  rviz_common::properties::FloatProperty *alpha_property_;
+  rviz_common::properties::FloatProperty *alpha_property_,
+      *scalar_threshold_property_;
 
   // parameters to control the z-axis scaling
+  double color_factor_{ 0.8 };
   double max_z_{ 1.0 };
   double min_z_{ -1.0 };
+
+  // for probability grids
+  int32_t log_odds_threshold_{ 0 };
 };
 
 /**
@@ -123,6 +123,58 @@ protected:
   virtual bool checkType(const std::string& type_id) = 0;
 };
 
+/**
+ * @brief Specialization of BonxaiGrid template for scalar values (float, int,
+ * etc...)
+ */
+template <typename CellT>
+class ScalarBonxaiGridDisplay : public TemplatedBonxaiGridDisplay<CellT>
+{
+protected:
+  void setVoxelColor(rviz_rendering::PointCloud::Point& new_point,
+                     CellT& cell) override;
+
+  bool shouldShowCell(const CellT& cell) override;
+
+  bool checkType(const std::string& type_id) override;
+};
+
+/**
+ * @brief Specialization of BonxaiGrid template for ProbabilisticMap
+ */
+class ProbabilisticBonxaiGridDisplay
+  : public TemplatedBonxaiGridDisplay<ProbabilisticCell>
+{
+protected:
+  void setVoxelColor(rviz_rendering::PointCloud::Point& new_point,
+                     ProbabilisticCell& cell) override;
+
+  bool shouldShowCell(const ProbabilisticCell& cell) override;
+
+  bool checkType(const std::string& type_id) override;
+};
+
+/**
+ * @brief Specialization of BonxaiGrid template for color values (struct's with r,g,b
+ * fields)
+ */
+class ColorBonxaiGridDisplay
+  : public TemplatedBonxaiGridDisplay<std_msgs::msg::ColorRGBA>
+{
+protected:
+  void setVoxelColor(rviz_rendering::PointCloud::Point& new_point,
+                     std_msgs::msg::ColorRGBA& cell) override;
+
+  bool shouldShowCell(const std_msgs::msg::ColorRGBA& cell)
+  {
+    (void)cell;  // silence compiler warning
+
+    return true;
+  };
+
+  bool checkType(const std::string& type_id) override;
+};
+
 }  // namespace bonxai_rviz_plugins
 
-#endif  // BONXAI_RVIZ_PLUGINS__BONXAI_GRID_DISPLAY_HPP_
+#endif  // BONXAI_RVIZ_PLUGINS__OCCUPANCY_GRID_DISPLAY_HPP_
