@@ -405,7 +405,7 @@ void TemplatedBonxaiGridDisplay<CellT>::processMessage(
           neighbor_coord.x = coord.x + offset[0];
           neighbor_coord.y = coord.y + offset[1];
           neighbor_coord.z = coord.z + offset[2];
-          if (accessor.value(neighbor_coord) == nullptr)
+          if (accessor.value(neighbor_coord, false) == nullptr)
           {
             occluded = false;
             break;
