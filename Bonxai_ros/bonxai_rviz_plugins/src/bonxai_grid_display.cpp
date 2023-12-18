@@ -104,40 +104,47 @@ void BonxaiGridDisplay::unsubscribe()
   MFDClass::unsubscribe();
 }
 
-// method taken from octomap_server package
 void BonxaiGridDisplay::setColorFromZAxis(rviz_rendering::PointCloud::Point& point)
 {
-  const float z_scaled = (max_z_ - point.position.z) / (max_z_ - min_z_);
+  float z_scaled = (max_z_ - point.position.z) / (max_z_ - min_z_);
+  z_scaled = std::max(std::min(z_scaled, 1.0f), 0.0f);
   point.setColor((1.0f - z_scaled), z_scaled, 0.0);
 }
 
 void BonxaiGridDisplay::updateBonxaiColorMode()
 {
   MFDClass::updateTopic();
+  reprocessLastMessage();
 }
 
 void BonxaiGridDisplay::updateAlpha()
 {
   MFDClass::updateTopic();
+  reprocessLastMessage();
 }
 
 void BonxaiGridDisplay::updateScalarThreshold()
 {
   MFDClass::updateTopic();
 
-  std::scoped_lock<std::mutex> lock(mutex_);
-  const float prob_threshold =
-      std::min(1.0f, std::max(0.0f, scalar_threshold_property_->getFloat()));
-  log_odds_threshold_ = Bonxai::ProbabilisticMap::logods(prob_threshold);
+  {
+    std::scoped_lock<std::mutex> lock(mutex_);
+    const float prob_threshold =
+        std::min(1.0f, std::max(0.0f, scalar_threshold_property_->getFloat()));
+    log_odds_threshold_ = Bonxai::ProbabilisticMap::logods(prob_threshold);
+  }
+  reprocessLastMessage();
 }
 
 void BonxaiGridDisplay::updateStyle()
 {
   MFDClass::updateTopic();
-
-  std::scoped_lock<std::mutex> lock(mutex_);
-  cloud_->setRenderMode(static_cast<rviz_rendering::PointCloud::RenderMode>(
-      style_property_->getOptionInt()));
+  {
+    std::scoped_lock<std::mutex> lock(mutex_);
+    cloud_->setRenderMode(static_cast<rviz_rendering::PointCloud::RenderMode>(
+        style_property_->getOptionInt()));
+  }
+  reprocessLastMessage();
 }
 
 void BonxaiGridDisplay::clear()
@@ -320,6 +327,12 @@ template <typename CellT>
 void TemplatedBonxaiGridDisplay<CellT>::processMessage(
     const bonxai_msgs::msg::Bonxai::ConstSharedPtr msg)
 {
+  if(!msg){
+    return;
+  }
+
+  std::scoped_lock<std::mutex> lock(mutex_);
+
   RCLCPP_DEBUG(rclcpp::get_logger("rviz2"),
                "Received Serialized Bonxai message (size: %zu bytes)",
                msg->raw_data.size());
@@ -403,11 +416,11 @@ void TemplatedBonxaiGridDisplay<CellT>::processMessage(
 
     if (!point_buf_.empty())
     {
-      std::scoped_lock<std::mutex> lock(mutex_);
-
       new_points_received_ = true;
 
       new_points_.swap(point_buf_);
+
+      last_msg_ = msg;
     }
     else
     {

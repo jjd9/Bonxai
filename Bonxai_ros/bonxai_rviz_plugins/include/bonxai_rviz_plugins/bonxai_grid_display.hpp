@@ -75,6 +75,8 @@ protected:
 
   virtual bool updateFromTF();
 
+  virtual void reprocessLastMessage() = 0;
+
   std::mutex mutex_;
 
   // point buffer
@@ -109,6 +111,14 @@ class TemplatedBonxaiGridDisplay : public BonxaiGridDisplay
 protected:
   void processMessage(const bonxai_msgs::msg::Bonxai::ConstSharedPtr msg) override;
 
+  /**
+   * @brief Allow reprocessing of the last message (without waiting for the next
+   * message) in case a parameter change happens that justifies redrawing the grid.
+  */
+  void reprocessLastMessage() override {
+    processMessage(last_msg_);
+  }
+
   virtual void setVoxelColor(rviz_rendering::PointCloud::Point& new_point,
                              CellT& cell) = 0;
 
@@ -118,6 +128,8 @@ protected:
   /// template paramter of this class, true if correct or unknown (i.e., no
   /// specialized method for that template).
   virtual bool checkType(const std::string& type_id) = 0;
+
+  bonxai_msgs::msg::Bonxai::ConstSharedPtr last_msg_;
 };
 
 /**

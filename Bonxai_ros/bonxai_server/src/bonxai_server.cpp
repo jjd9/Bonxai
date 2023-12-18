@@ -67,6 +67,8 @@ BonxaiServer::BonxaiServer(const rclcpp::NodeOptions& node_options)
   }
 
   res_ = declare_parameter("resolution", 0.1);
+  publish_bonxai_ =
+      declare_parameter("publish_bonxai", true);
 
   rcl_interfaces::msg::ParameterDescriptor prob_hit_desc;
   prob_hit_desc.description =
@@ -133,6 +135,8 @@ BonxaiServer::BonxaiServer(const rclcpp::NodeOptions& node_options)
   auto qos = latched_topics_ ? rclcpp::QoS{ 1 }.transient_local() : rclcpp::QoS{ 1 };
   point_cloud_pub_ =
       create_publisher<PointCloud2>("bonxai_point_cloud_centers", qos);
+  bonxai_pub_ =
+      create_publisher<bonxai_msgs::msg::Bonxai>("bonxai_grid", qos);
 
   tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(get_clock());
   auto timer_interface = std::make_shared<tf2_ros::CreateTimerROS>(
@@ -203,7 +207,11 @@ void BonxaiServer::insertCloudCallback(const PointCloud2::ConstSharedPtr cloud)
   RCLCPP_DEBUG(
       get_logger(), "Pointcloud insertion in Bonxai done, %f sec)", total_elapsed);
 
-  publishAll(cloud->header.stamp);
+  if(publish_bonxai_){
+    publishAllAsBonxai(cloud->header.stamp);
+  }else{
+    publishAllAsPcl(cloud->header.stamp);
+  }
 }
 
 rcl_interfaces::msg::SetParametersResult
@@ -228,7 +236,11 @@ BonxaiServer::onParameter(const std::vector<rclcpp::Parameter>& parameters)
 
   bonxai_->setOptions(options);
 
-  publishAll(now());
+  if(publish_bonxai_){
+    publishAllAsBonxai(now());
+  }else{
+    publishAllAsPcl(now());
+  }
 
   rcl_interfaces::msg::SetParametersResult result;
   result.successful = true;
@@ -236,7 +248,26 @@ BonxaiServer::onParameter(const std::vector<rclcpp::Parameter>& parameters)
   return result;
 }
 
-void BonxaiServer::publishAll(const rclcpp::Time& rostime)
+void BonxaiServer::publishAllAsBonxai(const rclcpp::Time& rostime)
+{
+  bool publish_bonxai =
+      (latched_topics_ ||
+       bonxai_pub_->get_subscription_count() +
+       bonxai_pub_->get_intra_process_subscription_count() > 0);
+
+  if (publish_bonxai)
+  {
+    bonxai_msgs::msg::Bonxai bonxai_msg;
+    bonxai_msgs::toRosMsg(bonxai_->grid(), bonxai_msg);
+    bonxai_msg.header.frame_id = world_frame_id_;
+    bonxai_msg.header.stamp = rostime;
+    bonxai_pub_->publish(bonxai_msg);
+
+    RCLCPP_WARN(get_logger(), "Published Bonxai grid");
+  }
+}
+
+void BonxaiServer::publishAllAsPcl(const rclcpp::Time& rostime)
 {
   const auto start_time = rclcpp::Clock{}.now();
   thread_local std::vector<Eigen::Vector3d> bonxai_result;
@@ -249,13 +280,12 @@ void BonxaiServer::publishAll(const rclcpp::Time& rostime)
     return;
   }
 
-  bool publish_point_cloud =
+  bool publish_pointcloud =
       (latched_topics_ ||
        point_cloud_pub_->get_subscription_count() +
        point_cloud_pub_->get_intra_process_subscription_count() > 0);
 
-  // init pointcloud for occupied space:
-  if (publish_point_cloud)
+  if (publish_pointcloud)
   {
     thread_local pcl::PointCloud<PCLPoint> pcl_cloud;
     pcl_cloud.clear();
@@ -284,7 +314,11 @@ bool BonxaiServer::resetSrv(const std::shared_ptr<ResetSrv::Request>,
   bonxai_ = std::make_unique<BonxaiT>(res_);
 
   RCLCPP_INFO(get_logger(), "Cleared Bonxai");
-  publishAll(rostime);
+  if(publish_bonxai_){
+    publishAllAsBonxai(rostime);
+  }else{
+    publishAllAsPcl(rostime);
+  }
 
   return true;
 }
