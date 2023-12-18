@@ -15,3 +15,7 @@ bonxai_server_node:
       max: 0.97
 
     latch: false
+    # set to true to publish entire grid as
+    # a Bonxai msg, or false to publish 
+    # occupied cells as a PointCloud2 msg
+    publish_bonxai: true

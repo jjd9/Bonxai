@@ -4,6 +4,8 @@
 #include "bonxai_map/pcl_utils.hpp"
 #include "bonxai_map/probabilistic_map.hpp"
 #include "bonxai/bonxai.hpp"
+#include "bonxai_msgs/conversion.hpp"
+#include "bonxai_msgs/msg/bonxai.hpp"
 
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/io/pcd_io.h>
@@ -53,13 +55,15 @@ public:
   virtual void insertCloudCallback(const PointCloud2::ConstSharedPtr cloud);
 
 protected:
-  virtual void publishAll(const rclcpp::Time& rostime);
+  virtual void publishAllAsBonxai(const rclcpp::Time& rostime);
+  virtual void publishAllAsPcl(const rclcpp::Time& rostime);
 
   OnSetParametersCallbackHandle::SharedPtr set_param_res_;
 
   rcl_interfaces::msg::SetParametersResult
   onParameter(const std::vector<rclcpp::Parameter>& parameters);
 
+  rclcpp::Publisher<bonxai_msgs::msg::Bonxai>::SharedPtr bonxai_pub_;
   rclcpp::Publisher<PointCloud2>::SharedPtr point_cloud_pub_;
   message_filters::Subscriber<PointCloud2> point_cloud_sub_;
   std::shared_ptr<tf2_ros::MessageFilter<PointCloud2>> tf_point_cloud_sub_;
@@ -81,6 +85,10 @@ protected:
 
   double occupancy_min_z_;
   double occupancy_max_z_;
+
+  // indicates if the Bonxai map should be published as
+  // a pointcloud2 or bonxai msg
+  bool publish_bonxai_;
 
   bool publish_2d_map_;
   bool map_origin_changed;
