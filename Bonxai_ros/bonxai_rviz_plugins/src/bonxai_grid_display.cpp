@@ -189,7 +189,7 @@ void BonxaiGridDisplay::update([[maybe_unused]] float wall_dt,
     }
     else
     {
-      cloud_->setDimensions(box_size_, box_size_, box_size_);
+      cloud_->setDimensions(voxel_size_, voxel_size_, voxel_size_);
     }
 
     cloud_->addPoints(new_points_.begin(), new_points_.end());
@@ -368,7 +368,7 @@ void TemplatedBonxaiGridDisplay<CellT>::processMessage(
     // creating bonxai grid
     std::string grid_type;  // this will be CellT as a string
     Bonxai::VoxelGrid<CellT> grid = bonxai_msgs::fromRosMsg<CellT>(*msg, grid_type);
-    box_size_ = grid.resolution;
+    voxel_size_ = grid.resolution;
 
     setStatusStd(StatusProperty::Ok, "Type", grid_type.c_str());
     if (!checkType(grid_type))
@@ -418,7 +418,7 @@ void TemplatedBonxaiGridDisplay<CellT>::processMessage(
         }
       }
 
-      const auto point = CoordToPos(coord, box_size_);
+      const auto point = CoordToPos(coord, voxel_size_);
       rviz_rendering::PointCloud::Point new_point;
       new_point.position.x = point.x;
       new_point.position.y = point.y;

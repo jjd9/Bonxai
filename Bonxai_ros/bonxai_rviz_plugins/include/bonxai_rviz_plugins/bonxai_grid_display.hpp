@@ -88,7 +88,7 @@ protected:
 
   // Ogre-rviz point clouds
   std::shared_ptr<rviz_rendering::PointCloud> cloud_;
-  double box_size_;
+  double voxel_size_;
   std_msgs::msg::Header header_;
 
   // Plugin properties
