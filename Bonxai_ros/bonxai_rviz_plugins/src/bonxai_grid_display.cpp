@@ -17,9 +17,10 @@
 #include <QObject>  // NOLINT
 
 #include "rviz_common/visualization_manager.hpp"
-#include "rviz_common/properties/int_property.hpp"
+#include "rviz_common/properties/bool_property.hpp"
 #include "rviz_common/properties/enum_property.hpp"
 #include "rviz_common/properties/float_property.hpp"
+#include "rviz_common/properties/int_property.hpp"
 #include "rviz_common/properties/status_property.hpp"
 
 #include "bonxai/bonxai.hpp"
@@ -43,7 +44,7 @@ BonxaiGridDisplay::BonxaiGridDisplay()
   RCLCPP_DEBUG(rclcpp::get_logger("rviz2"), "Constructing bonxai grid display!");
 
   bonxai_coloring_property_ =
-      new rviz_common::properties::EnumProperty("Voxel Coloring",
+      std::make_unique<rviz_common::properties::EnumProperty>("Voxel Coloring",
                                                 "Z-Axis",
                                                 "Select voxel coloring mode",
                                                 this,
@@ -52,13 +53,13 @@ BonxaiGridDisplay::BonxaiGridDisplay()
   bonxai_coloring_property_->addOption("Z-Axis", BONXAI_Z_AXIS_COLOR);
   bonxai_coloring_property_->addOption("Cell Probability", BONXAI_PROBABILITY_COLOR);
 
-  alpha_property_ = new rviz_common::properties::FloatProperty(
+  alpha_property_ = std::make_unique<rviz_common::properties::FloatProperty>(
       "Voxel Alpha", 1.0, "Set voxel transparency alpha", this, SLOT(updateAlpha()));
   alpha_property_->setMin(0.0);
   alpha_property_->setMax(1.0);
 
   scalar_threshold_property_ =
-      new rviz_common::properties::FloatProperty("Threshold",
+      std::make_unique<rviz_common::properties::FloatProperty>("Threshold",
                                                  0.5,
                                                  "Set scalar/probability threshold. "
                                                  "Voxels with lower values are "
@@ -67,7 +68,7 @@ BonxaiGridDisplay::BonxaiGridDisplay()
                                                  SLOT(updateScalarThreshold()));
 
   // credit to: https://github.com/OctoMap/octomap_rviz_plugins/pull/20
-  style_property_ = new rviz_common::properties::EnumProperty("Style",
+  style_property_ = std::make_unique<rviz_common::properties::EnumProperty>("Style",
                                                               "Boxes",
                                                               "Rendering mode to "
                                                               "use, in order of "
@@ -81,6 +82,15 @@ BonxaiGridDisplay::BonxaiGridDisplay()
                              rviz_rendering::PointCloud::RM_FLAT_SQUARES);
   style_property_->addOption("Spheres", rviz_rendering::PointCloud::RM_SPHERES);
   style_property_->addOption("Boxes", rviz_rendering::PointCloud::RM_BOXES);
+
+  check_occlusions_property_ = std::make_unique<rviz_common::properties::BoolProperty>(
+    "Check Occlusions",
+    true,
+    "If True, perform occlusion check. Useful for very dense grids, but if you know your "
+    "grid is not dense, you can disable this to improve efficiency.",
+    this,
+    SLOT(updateCheckOcclusions()),
+    this);
 
   RCLCPP_DEBUG(rclcpp::get_logger("rviz2"),
                "Done constructing bonxai grid display!");
@@ -144,6 +154,11 @@ void BonxaiGridDisplay::updateStyle()
     cloud_->setRenderMode(static_cast<rviz_rendering::PointCloud::RenderMode>(
         style_property_->getOptionInt()));
   }
+  reprocessLastMessage();
+}
+
+void BonxaiGridDisplay::updateCheckOcclusions(){
+  MFDClass::updateTopic();
   reprocessLastMessage();
 }
 
@@ -368,6 +383,8 @@ void TemplatedBonxaiGridDisplay<CellT>::processMessage(
     min_z_ = std::numeric_limits<double>::max();
     max_z_ = std::numeric_limits<double>::lowest();
 
+    const bool check_occlusions = check_occlusions_property_->getBool();
+
     // do this for every cell in the grid
     auto accessor = grid.createAccessor();
     auto visitor_func = [&](CellT& cell, const Bonxai::CoordT& coord) {
@@ -376,26 +393,28 @@ void TemplatedBonxaiGridDisplay<CellT>::processMessage(
         return;
       }
 
-      // if the cell has at least one unoccupied neighbor, it should
-      // be added, since it may be visible. otherwise, it can be ignored
-      // without affecting the grid visualization.
-      Bonxai::CoordT neighbor_coord;
-      bool occluded = true;
-      for (const auto& offset : CUBE_FACES)
-      {
-        neighbor_coord.x = coord.x + offset[0];
-        neighbor_coord.y = coord.y + offset[1];
-        neighbor_coord.z = coord.z + offset[2];
-        if (accessor.value(neighbor_coord) == nullptr)
+      if(check_occlusions){
+        // if the cell has at least one unoccupied neighbor, it should
+        // be added, since it may be visible. otherwise, it can be ignored
+        // without affecting the grid visualization.
+        Bonxai::CoordT neighbor_coord;
+        bool occluded = true;
+        for (const auto& offset : CUBE_FACES)
         {
-          occluded = false;
-          break;
+          neighbor_coord.x = coord.x + offset[0];
+          neighbor_coord.y = coord.y + offset[1];
+          neighbor_coord.z = coord.z + offset[2];
+          if (accessor.value(neighbor_coord) == nullptr)
+          {
+            occluded = false;
+            break;
+          }
         }
-      }
 
-      if (occluded)
-      {
-        return;
+        if (occluded)
+        {
+          return;
+        }
       }
 
       const auto point = CoordToPos(coord, box_size_);
@@ -403,8 +422,6 @@ void TemplatedBonxaiGridDisplay<CellT>::processMessage(
       new_point.position.x = point.x;
       new_point.position.y = point.y;
       new_point.position.z = point.z;
-
-      RCLCPP_DEBUG(rclcpp::get_logger("rviz2"), "Processing cell");
 
       setVoxelColor(new_point, cell);
       min_z_ = std::min(min_z_, point.z);

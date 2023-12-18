@@ -31,9 +31,10 @@ namespace rviz_common
 {
 namespace properties
 {
-class IntProperty;
+class BoolProperty;
 class EnumProperty;
 class FloatProperty;
+class IntProperty;
 }  // namespace properties
 }  // namespace rviz_common
 
@@ -65,6 +66,7 @@ private Q_SLOTS:
   void updateAlpha();
   void updateScalarThreshold();
   void updateStyle();
+  void updateCheckOcclusions();
 
 protected:
   void unsubscribe() override;
@@ -90,9 +92,10 @@ protected:
   std_msgs::msg::Header header_;
 
   // Plugin properties
-  rviz_common::properties::EnumProperty *bonxai_coloring_property_, *style_property_;
-  rviz_common::properties::FloatProperty *alpha_property_,
-      *scalar_threshold_property_;
+  std::unique_ptr<rviz_common::properties::EnumProperty> bonxai_coloring_property_, style_property_;
+  std::unique_ptr<rviz_common::properties::FloatProperty> alpha_property_,
+      scalar_threshold_property_;
+  std::unique_ptr<rviz_common::properties::BoolProperty> check_occlusions_property_;
 
   // parameters to control the z-axis scaling
   double max_z_{ 1.0 };
