@@ -107,7 +107,7 @@ void BonxaiGridDisplay::unsubscribe()
 // method taken from octomap_server package
 void BonxaiGridDisplay::setColorFromZAxis(rviz_rendering::PointCloud::Point& point)
 {
-  const float z_scaled = (max_z_ - point.z) / (max_z_ - min_z_);
+  const float z_scaled = (max_z_ - point.position.z) / (max_z_ - min_z_);
   point.setColor((1.0f - z_scaled), z_scaled, 0.0);
 }
 
